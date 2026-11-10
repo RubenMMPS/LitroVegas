@@ -1,5 +1,6 @@
 export interface Caballo {
   id: number;
+  name: string;
   color: string;
   posicionX: number;
   img: string;

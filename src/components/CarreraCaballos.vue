@@ -15,19 +15,19 @@ let temporizador: ReturnType<typeof setInterval> | undefined
 
 const caballos = ref<Caballo[]>([
   {
-    id: 1, color: 'rojo', posicionX: 0, img: 'caballoRojo.png',
+    id: 1, name: "Secretariat", color: 'rojo', posicionX: 0, img: 'caballoRojo.png',
     cuota: 1.8, avanceMin: 3, avanceMax: 10
   },
   {
-    id: 2, color: 'azul', posicionX: 0, img: 'caballoAzul.png',
+    id: 2, name: "Oguri Cap", color: 'azul', posicionX: 0, img: 'caballoAzul.png',
     cuota: 2.5, avanceMin: 2, avanceMax: 10
   },
   {
-    id: 3, color: 'verde', posicionX: 0, img: 'caballoVerde.png',
+    id: 3, name: "Deep Impact", color: 'verde', posicionX: 0, img: 'caballoVerde.png',
     cuota: 4, avanceMin: 1, avanceMax: 10
   },
   {
-    id: 4, color: 'amarillo', posicionX: 0, img: 'caballoAmarillo.png',
+    id: 4, name: "Vodka", color: 'amarillo', posicionX: 0, img: 'caballoAmarillo.png',
     cuota: 6, avanceMin: 0, avanceMax: 10
   }
 ])
@@ -119,7 +119,7 @@ function calcularResultado(){
             :disabled="carreraEnCurso"
           />
 
-          <span class="caballo-nombre">{{ caballo.color }}</span>
+          <span class="caballo-nombre">{{ caballo.name }}</span>
           <span class="caballo-cuota">x{{ caballo.cuota.toFixed(2) }}</span>
         </label>
       </section>
@@ -167,7 +167,7 @@ function calcularResultado(){
       </button>
 
       <div v-if="ganadorCarrera" class="resultado"">
-        <h2>¡Ha ganado el caballo {{ ganadorCarrera.color }}!</h2>
+        <h2>¡Ha ganado {{ ganadorCarrera.name }}, el caballo {{ ganadorCarrera.color }}!</h2>
 
         <p v-if="ganadorCarrera.id === caballoElegido">
           ¡Has acertado! Cuota: {{ ganadorCarrera.cuota.toFixed(2) }}
