@@ -36,7 +36,6 @@ interface Carrete {
 }
 
 const apuesta = ref(0)
-const ultimaApuesta = ref(0)
 const premio = ref(0)
 const gana = ref(false)
 const girando = ref(false)
@@ -87,18 +86,6 @@ function retirar() {
   mensaje.value = 'Apuesta retirada.'
 }
 
-function repetir() {
-  if (girando.value || apuesta.value > 0 || ultimaApuesta.value < 1) return
-  if (!banca.restar(ultimaApuesta.value)) {
-    mensaje.value = 'No tienes saldo suficiente.'
-    return
-  }
-  apuesta.value = ultimaApuesta.value
-  premio.value = 0
-  gana.value = false
-  mensaje.value = '¡Dinero dentro! Tira de la palanca.'
-}
-
 // Si sales de la página con dinero metido y sin girar, se te devuelve
 onBeforeUnmount(() => {
   if (apuesta.value > 0 && !girando.value) banca.sumar(apuesta.value)
@@ -128,8 +115,6 @@ async function girar() {
   mensaje.value = '¡Girando...!'
 
   const apostado = apuesta.value
-  ultimaApuesta.value = apostado
-  apuesta.value = 0
 
   // Solo la línea central determina el premio.
   const linea = Array.from({ length: NUM_CARRETES }, () => simboloAleatorio())
@@ -269,14 +254,6 @@ async function tirarConClick() {
           <div class="acciones">
             <button class="btn btn-secundario" :disabled="girando || apuesta < 1" @click="retirar">
               Retirar
-            </button>
-            <button
-              v-if="ultimaApuesta > 0"
-              class="btn"
-              :disabled="girando || apuesta > 0 || ultimaApuesta > banca.dinero"
-              @click="repetir"
-            >
-              Repetir {{ ultimaApuesta }}€
             </button>
           </div>
             <div class="bombillas" aria-hidden="true">
