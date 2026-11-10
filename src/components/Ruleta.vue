@@ -49,9 +49,108 @@ Object.assign(DEFINICIONES, {
   col3: { multiplicador: 3, gana: (x: number) => x > 0 && x % 3 === 0 }
 })
 
+interface Componente {
+  numeros: number[]
+  multiplicador: number
+  fichas: number
+}
+
+interface Anunciada {
+  clave: string
+  nombre: string
+  unidades: number
+  componentes: Componente[]
+}
+
+const pleno = (n: number): Componente => ({ numeros: [n], multiplicador: 36, fichas: 1 })
+const caballo = (a: number, b: number): Componente => ({
+  numeros: [a, b],
+  multiplicador: 18,
+  fichas: 1
+})
+
+const ANUNCIADAS: Record<string, Anunciada> = {}
+
+function registrar(clave: string, nombre: string, componentes: Componente[]) {
+  ANUNCIADAS[clave] = {
+    clave,
+    nombre,
+    componentes,
+    unidades: componentes.reduce((total, c) => total + c.fichas, 0)
+  }
+}
+
+registrar('a-huerfanos', 'Huérfanos', [
+  pleno(1),
+  caballo(6, 9),
+  caballo(14, 17),
+  caballo(17, 20),
+  caballo(31, 34)
+])
+
+registrar('a-vecinos', 'Vecinos del cero', [
+  { numeros: [0, 2, 3], multiplicador: 12, fichas: 2 },
+  caballo(4, 7),
+  caballo(12, 15),
+  caballo(18, 21),
+  caballo(19, 22),
+  caballo(32, 35),
+  { numeros: [25, 26, 28, 29], multiplicador: 9, fichas: 2 }
+])
+
+registrar('a-tercio', 'Tercio del cilindro', [
+  caballo(5, 8),
+  caballo(10, 11),
+  caballo(13, 16),
+  caballo(23, 24),
+  caballo(27, 30),
+  caballo(33, 36)
+])
+
+registrar('a-cero', 'Juego del cero', [caballo(0, 3), caballo(12, 15), pleno(26), caballo(32, 35)])
+
+for (let n = 0; n <= 36; n++) {
+  const k = ORDEN.indexOf(n)
+  registrar(
+    `v-${n}`,
+    `Vecinos del ${n}`,
+    [-2, -1, 0, 1, 2].map((d) => pleno(ORDEN[(k + d + ORDEN.length) % ORDEN.length]!))
+  )
+}
+
+const LISTA_ANUNCIADAS = ['a-huerfanos', 'a-vecinos', 'a-tercio', 'a-cero'].map(
+  (clave) => ANUNCIADAS[clave]!
+)
+
+function numerosCubiertos(clave: string): number[] {
+  const anunciada = ANUNCIADAS[clave]
+  if (!anunciada) return []
+  return [...new Set(anunciada.componentes.flatMap((c) => c.numeros))]
+}
+
+function descripcion(anunciada: Anunciada) {
+  return `${anunciada.nombre}: ${anunciada.unidades} fichas, cubre ${numerosCubiertos(anunciada.clave).length} números`
+}
+
+function pago(clave: string, importe: number, numero: number): number {
+  const simple = DEFINICIONES[clave]
+  if (simple) return simple.gana(numero) ? importe * simple.multiplicador : 0
+
+  const anunciada = ANUNCIADAS[clave]
+  if (!anunciada) return 0
+
+  const unidad = importe / anunciada.unidades
+  return anunciada.componentes.reduce(
+    (total, c) =>
+      c.numeros.includes(numero) ? total + unidad * c.fichas * c.multiplicador : total,
+    0
+  )
+}
+
 interface Celda {
   clave: string
   etiqueta: string
+  n?: number
   c: number
   cs: number
   f: number
@@ -61,7 +160,7 @@ interface Celda {
 
 const CELDAS: Celda[] = []
 
-CELDAS.push({ clave: 'n-0', etiqueta: '0', c: 1, cs: 1, f: 1, fs: 3, clase: 'numero verde' })
+CELDAS.push({ clave: 'n-0', etiqueta: '0', n: 0, c: 1, cs: 1, f: 1, fs: 3, clase: 'numero verde' })
 
 for (let r = 0; r < 3; r++) {
   for (let c = 0; c < 12; c++) {
@@ -69,6 +168,7 @@ for (let r = 0; r < 3; r++) {
     CELDAS.push({
       clave: `n-${n}`,
       etiqueta: String(n),
+      n,
       c: c + 2,
       cs: 1,
       f: r + 1,
@@ -114,11 +214,12 @@ const FICHAS_APUESTA = [...TIPOS_FICHA].reverse().filter((t) => t.valor <= 100)
 
 const banca = useDineroStore()
 
-const ruletaRef = ref<HTMLElement | null>(null)
 const apuestas = ref<Record<string, number>>({})
 const historial = ref<{ clave: string; valor: number }[]>([])
 const apuestasAnteriores = ref<Record<string, number>>({})
 const fichaActiva = ref(5)
+const vecinoDe = ref(17)
+const resaltados = ref<number[]>([])
 
 const girando = ref(false)
 const resultado = ref<number | null>(null)
@@ -132,6 +233,15 @@ const bolaGiro = ref(0)
 const totalApostado = computed(() => Object.values(apuestas.value).reduce((a, b) => a + b, 0))
 const totalAnterior = computed(() =>
   Object.values(apuestasAnteriores.value).reduce((a, b) => a + b, 0)
+)
+
+const numeroVecino = computed(() => {
+  const v = Math.floor(Number(vecinoDe.value))
+  return Number.isFinite(v) ? Math.min(36, Math.max(0, v)) : 0
+})
+const anunciadaVecinos = computed(() => ANUNCIADAS[`v-${numeroVecino.value}`]!)
+const textoVecinos = computed(() =>
+  numerosCubiertos(anunciadaVecinos.value.clave).join(' · ')
 )
 
 const esperar = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
@@ -149,6 +259,32 @@ function apostar(clave: string) {
   apuestas.value[clave] = (apuestas.value[clave] ?? 0) + fichaActiva.value
   historial.value.push({ clave, valor: fichaActiva.value })
   mensaje.value = 'Cuando estés listo, pulsa «Girar».'
+}
+
+function apostarAnunciada(clave: string) {
+  if (girando.value) return
+  const anunciada = ANUNCIADAS[clave]
+  if (!anunciada) return
+  const coste = anunciada.unidades * fichaActiva.value
+  if (!banca.restar(coste)) {
+    mensaje.value = 'No tienes saldo suficiente para esa apuesta.'
+    return
+  }
+  apuestas.value[clave] = (apuestas.value[clave] ?? 0) + coste
+  historial.value.push({ clave, valor: coste })
+  mensaje.value = `${anunciada.nombre}: ${coste}€ repartidos en ${anunciada.unidades} fichas.`
+}
+
+function resaltar(clave: string) {
+  resaltados.value = numerosCubiertos(clave)
+}
+
+function quitarResalte() {
+  resaltados.value = []
+}
+
+function estaResaltada(celda: Celda) {
+  return celda.n !== undefined && resaltados.value.includes(celda.n)
 }
 
 function deshacer() {
@@ -197,13 +333,10 @@ function etiquetaImporte(importe: number) {
 async function girar() {
   if (girando.value || totalApostado.value < 1) return
 
-  if (window.matchMedia('(max-width: 600px)').matches) {
-    ruletaRef.value?.scrollTo({ top: 0, behavior: 'smooth' })
-  }
-
   girando.value = true
   resultado.value = null
   premio.value = 0
+  resaltados.value = []
   mensaje.value = '¡No va más!'
 
   const apostado = { ...apuestas.value }
@@ -224,8 +357,7 @@ async function girar() {
 
   let devuelto = 0
   for (const [clave, importe] of Object.entries(apostado)) {
-    const def = DEFINICIONES[clave]
-    if (def?.gana(numero)) devuelto += importe * def.multiplicador
+    devuelto += pago(clave, importe, numero)
   }
   if (devuelto > 0) banca.sumar(devuelto)
 
@@ -248,7 +380,7 @@ async function girar() {
 </script>
 
 <template>
-  <section ref="ruletaRef" class="ruleta">
+  <section class="ruleta">
     <div class="contenido">
       <div class="zona">
         <div class="rueda-zona">
@@ -290,7 +422,7 @@ async function girar() {
               v-for="c in CELDAS"
               :key="c.clave"
               class="celda"
-              :class="c.clase"
+              :class="[c.clase, { resaltada: estaResaltada(c) }]"
               :style="{ '--c': c.c, '--cs': c.cs, '--f': c.f, '--fs': c.fs }"
               :disabled="girando"
               :aria-label="`Apostar a ${c.etiqueta}`"
@@ -302,6 +434,65 @@ async function girar() {
               </span>
             </button>
           </div>
+        </div>
+      </div>
+
+      <div class="anunciadas" role="group" aria-label="Apuestas anunciadas">
+        <span class="anunciadas-titulo">Apuestas anunciadas</span>
+
+        <button
+          v-for="a in LISTA_ANUNCIADAS"
+          :key="a.clave"
+          class="anunciada"
+          :disabled="girando"
+          :title="descripcion(a)"
+          @click="apostarAnunciada(a.clave)"
+          @mouseenter="resaltar(a.clave)"
+          @mouseleave="quitarResalte"
+          @focus="resaltar(a.clave)"
+          @blur="quitarResalte"
+        >
+          {{ a.nombre }}
+          <small>{{ a.unidades }} × {{ fichaActiva }}€ = {{ a.unidades * fichaActiva }}€</small>
+          <span v-if="apuestas[a.clave]" class="marca" :style="estiloMarca(a.clave)">
+            {{ etiquetaImporte(apuestas[a.clave]!) }}
+          </span>
+        </button>
+
+        <div class="vecinos">
+          <label for="vecinos-numero">Vecinos del</label>
+          <input
+            id="vecinos-numero"
+            v-model.number="vecinoDe"
+            type="number"
+            min="0"
+            max="36"
+            :disabled="girando"
+          />
+          <button
+            class="anunciada"
+            :disabled="girando"
+            :title="`Cubre: ${textoVecinos}`"
+            @click="apostarAnunciada(anunciadaVecinos.clave)"
+            @mouseenter="resaltar(anunciadaVecinos.clave)"
+            @mouseleave="quitarResalte"
+            @focus="resaltar(anunciadaVecinos.clave)"
+            @blur="quitarResalte"
+          >
+            Apostar
+            <small>
+              {{ anunciadaVecinos.unidades }} × {{ fichaActiva }}€ =
+              {{ anunciadaVecinos.unidades * fichaActiva }}€
+            </small>
+            <span
+              v-if="apuestas[anunciadaVecinos.clave]"
+              class="marca"
+              :style="estiloMarca(anunciadaVecinos.clave)"
+            >
+              {{ etiquetaImporte(apuestas[anunciadaVecinos.clave]!) }}
+            </span>
+          </button>
+          <span class="vecinos-numeros">{{ textoVecinos }}</span>
         </div>
       </div>
 
