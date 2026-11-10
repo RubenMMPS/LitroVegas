@@ -24,7 +24,7 @@ const PESO_TOTAL = SIMBOLOS.reduce((total, s) => total + s.peso, 0)
 const FICHAS_APUESTA = [...TIPOS_FICHA].reverse().filter((t) => t.valor <= 100)
 
 const NUM_CARRETES = 3
-const RECORRIDO = 100 // Debe coincidir con las medidas de la palanca en el CSS.
+const RECORRIDO = 100
 
 const banca = useDineroStore()
 

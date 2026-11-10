@@ -16,7 +16,7 @@ function cerrarMenu() {
     <RouterLink to="/" class="marca-link" @click="cerrarMenu">
       <div class="marca">
         <span class="logo" aria-hidden="true">♠</span>
-        <span class="titulo">Casino</span>
+        <span class="titulo">Litro Vegas</span>
       </div>
     </RouterLink>
 

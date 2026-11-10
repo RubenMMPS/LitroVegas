@@ -18,7 +18,7 @@ function giro(indice: number) {
 <template>
   <section class="menu">
     <header class="cabecera">
-      <h1>Casino</h1>
+      <h1>Litro Vegas</h1>
       <p>Elige tu juego</p>
     </header>
 
